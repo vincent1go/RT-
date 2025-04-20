@@ -1,4 +1,5 @@
 import os
+import re
 import logging
 import pytz
 from datetime import datetime
@@ -8,6 +9,7 @@ import fitz  # PyMuPDF
 
 # Конфигурация
 TOKEN = os.getenv("BOT_TOKEN")
+ADMIN_ID = os.getenv("ADMIN_ID")  # ID администратора Telegram (опционально)
 if not TOKEN:
     raise ValueError("BOT_TOKEN не установлен! Проверь переменные окружения.")
 
@@ -17,7 +19,14 @@ OLD_DATE = "19.04.2025"
 COLOR = (69 / 255, 69 / 255, 69 / 255)  # #454545
 FONT_PATH = "fonts/times.ttf"  # Путь к файлу шрифта
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("bot.log"),
+        logging.StreamHandler()
+    ]
+)
 
 # Получение текущей даты по Лондону
 def get_london_date():
@@ -28,7 +37,6 @@ def get_london_date():
 def replace_text(page, old_text, new_text):
     areas = page.search_for(old_text)
     for area in areas:
-        # Извлечение оригинального стиля текста
         text_info = page.get_text("dict", clip=area)
         font_size = 12
         font_name = "helv"
@@ -40,34 +48,36 @@ def replace_text(page, old_text, new_text):
                     font_name = span.get("font", "helv")
                     break
 
-        # Закрасить старый текст
-        page.add_redact_annot(area, fill=(1, 1, 1))  # белый прямоугольник
+        page.add_redact_annot(area, fill=(1, 1, 1))
     page.apply_redactions()
 
-    # Вставить новый текст в найденные области
     for area in areas:
         x = area.x0
-        y = area.y1 - font_size * 0.2  # выравнивание по базовой линии
-
-        # Используем шрифт из папки "folders"
+        y = area.y1 - font_size * 0.2
         page.insert_text(
             (x, y),
             new_text,
-            fontname="times_roman",  # Название шрифта
+            fontname="times_roman",
             fontsize=font_size,
             color=COLOR,
-            fontfile=FONT_PATH  # Путь к файлу шрифта
+            fontfile=FONT_PATH
         )
 
 # Обработка PDF: заменяем имя и дату
 def replace_text_in_pdf(input_path, output_path, old_name, new_name, old_date, new_date):
     doc = fitz.open(input_path)
-
     for page in doc:
         replace_text(page, old_name, new_name)
         replace_text(page, old_date, new_date)
-
     doc.save(output_path)
+
+# Уведомление админа об ошибке
+async def notify_admin(context, message):
+    if ADMIN_ID:
+        try:
+            await context.bot.send_message(chat_id=int(ADMIN_ID), text=message)
+        except Exception as e:
+            logging.error(f"Не удалось отправить сообщение админу: {e}")
 
 # Команда /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -77,9 +87,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     client_name = update.message.text.strip()
 
-    if client_name:
+    if not client_name:
+        await update.message.reply_text("Пожалуйста, введите имя клиента.")
+        return
+
+    try:
+        # Очистка имени от опасных символов
+        safe_name = re.sub(r'[^a-zA-Zа-яА-Я0-9\s-]', '', client_name).strip()
+        if not safe_name:
+            await update.message.reply_text("Имя клиента содержит недопустимые символы.")
+            return
+
         today = get_london_date()
-        output_path = f"{client_name}.pdf"
+        output_path = f"{safe_name}.pdf"
 
         replace_text_in_pdf(TEMPLATE_PATH, output_path, OLD_NAME, client_name, OLD_DATE, today)
 
@@ -87,8 +107,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await update.message.reply_document(document=InputFile(f, filename=output_path))
 
         os.remove(output_path)
-    else:
-        await update.message.reply_text("Пожалуйста, введите имя клиента.")
+        logging.info(f"Успешно сгенерирован PDF для: {client_name}")
+
+    except Exception as e:
+        logging.error(f"Ошибка при обработке сообщения: {e}")
+        await notify_admin(context, f"Произошла ошибка у пользователя {update.effective_user.id}: {e}")
+        await update.message.reply_text("Произошла ошибка при обработке. Попробуйте позже.")
 
 # Запуск бота
 if __name__ == "__main__":
