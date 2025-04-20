@@ -28,8 +28,7 @@ def replace_text_in_pdf(input_path, output_path, old_name, new_name, old_date, n
     writer.write(output_path)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("Привет! Напиши имя клиента, например:
-Имя клиента: Иван Иванов")
+    await update.message.reply_text("Привет! Напиши имя клиента, например: Иван Иванов")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.message.text
