@@ -15,7 +15,7 @@ TEMPLATE_PATH = "template.pdf"
 OLD_NAME = "TURSUNOV MUMIN FA4837585"
 OLD_DATE = "19.04.2025"
 COLOR = (69 / 255, 69 / 255, 69 / 255)  # #454545
-FONT_PATH = "folders/times.ttf"  # Путь к файлу шрифта
+FONT_PATH = "fonts/times.ttf"  # Путь к файлу шрифта
 
 logging.basicConfig(level=logging.INFO)
 
