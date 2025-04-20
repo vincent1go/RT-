@@ -76,8 +76,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Обработка сообщения с именем клиента
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     client_name = update.message.text.strip()
-    
-    if len(client_name.split()) >= 2:
+
+    if client_name:
         today = get_london_date()
         output_path = f"{client_name}.pdf"
 
@@ -88,7 +88,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         os.remove(output_path)
     else:
-        await update.message.reply_text("Пожалуйста, введите полное имя клиента (имя и фамилию).")
+        await update.message.reply_text("Пожалуйста, введите имя клиента.")
 
 # Запуск бота
 if __name__ == "__main__":
@@ -96,4 +96,3 @@ if __name__ == "__main__":
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.run_polling()
-
