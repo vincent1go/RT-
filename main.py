@@ -4,7 +4,7 @@ import pytz
 from datetime import datetime
 from telegram import Update, InputFile
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
-from PyPDF2 import PdfReader, PdfWriter
+import fitz  # PyMuPDF
 
 TOKEN = os.getenv("BOT_TOKEN")
 if not TOKEN:
@@ -18,17 +18,19 @@ def get_london_date():
     return london_time.strftime("%d.%m.%Y")
 
 def replace_text_in_pdf(input_path, output_path, old_name, new_name, old_date, new_date):
-    reader = PdfReader(input_path)
-    writer = PdfWriter()
+    # Открываем PDF с помощью PyMuPDF
+    doc = fitz.open(input_path)
 
-    for page in reader.pages:
-        content = page.extract_text()
-        if content:
-            content = content.replace(old_name, new_name).replace(old_date, new_date)
-        writer.add_page(page)
-    
-    with open(output_path, "wb") as f:
-        writer.write(f)
+    for page in doc:
+        text_instances = page.search_for(old_name)
+        for inst in text_instances:
+            page.insert_text(inst[:2], new_name, fontsize=12)  # Заменить имя
+
+        text_instances = page.search_for(old_date)
+        for inst in text_instances:
+            page.insert_text(inst[:2], new_date, fontsize=12)  # Заменить дату
+
+    doc.save(output_path)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Привет! Напиши имя клиента, например: Иван Иванов")
