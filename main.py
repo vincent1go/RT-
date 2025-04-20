@@ -25,15 +25,16 @@ def replace_text_in_pdf(input_path, output_path, old_name, new_name, old_date, n
             content = content.replace(old_name, new_name).replace(old_date, new_date)
         writer.add_page(page)
     
-    writer.write(output_path)
+    with open(output_path, "wb") as f:
+        writer.write(f)
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Привет! Напиши имя клиента, например: Иван Иванов")
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    message = update.message.text
-    if message.lower().startswith("имя клиента:"):
-        client_name = message.split(":", 1)[1].strip()
+    client_name = update.message.text.strip()
+    
+    if len(client_name.split()) >= 2:  # Простейшая проверка — есть ли имя и фамилия
         old_name = "TURSUNOV MUMIN FA4837585"
         old_date = "19.04.2025"
         today = get_london_date()
@@ -46,8 +47,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
         os.remove(output_path)
     else:
-        await update.message.reply_text("Пожалуйста, введите имя клиента в формате:
-Имя клиента: Иван Иванов")
+        await update.message.reply_text("Пожалуйста, введите полное имя клиента (имя и фамилию).")
 
 if __name__ == "__main__":
     app = ApplicationBuilder().token(TOKEN).build()
