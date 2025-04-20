@@ -1,10 +1,10 @@
 import os
 import logging
 import pytz
+import fitz  # PyMuPDF
 from datetime import datetime
 from telegram import Update, InputFile
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
-import fitz  # PyMuPDF
 
 TOKEN = os.getenv("BOT_TOKEN")
 if not TOKEN:
@@ -18,17 +18,24 @@ def get_london_date():
     return london_time.strftime("%d.%m.%Y")
 
 def replace_text_in_pdf(input_path, output_path, old_name, new_name, old_date, new_date):
-    # Открываем PDF с помощью PyMuPDF
     doc = fitz.open(input_path)
 
     for page in doc:
-        text_instances = page.search_for(old_name)
-        for inst in text_instances:
-            page.insert_text(inst[:2], new_name, fontsize=12)  # Заменить имя
+        # Заменяем имя
+        name_boxes = page.search_for(old_name)
+        for box in name_boxes:
+            page.add_redact_annot(box, fill=(1, 1, 1))  # белая подложка
+        page.apply_redactions()
+        for box in name_boxes:
+            page.insert_text(box[:2], new_name, fontsize=11, color=(0, 0, 0))
 
-        text_instances = page.search_for(old_date)
-        for inst in text_instances:
-            page.insert_text(inst[:2], new_date, fontsize=12)  # Заменить дату
+        # Заменяем дату
+        date_boxes = page.search_for(old_date)
+        for box in date_boxes:
+            page.add_redact_annot(box, fill=(1, 1, 1))
+        page.apply_redactions()
+        for box in date_boxes:
+            page.insert_text(box[:2], new_date, fontsize=11, color=(0, 0, 0))
 
     doc.save(output_path)
 
@@ -37,8 +44,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     client_name = update.message.text.strip()
-    
-    if len(client_name.split()) >= 2:  # Простейшая проверка — есть ли имя и фамилия
+
+    if len(client_name.split()) >= 2:
         old_name = "TURSUNOV MUMIN FA4837585"
         old_date = "19.04.2025"
         today = get_london_date()
