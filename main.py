@@ -7,6 +7,8 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, Con
 from PyPDF2 import PdfReader, PdfWriter
 
 TOKEN = os.getenv("BOT_TOKEN")
+if not TOKEN:
+    raise ValueError("BOT_TOKEN не установлен! Проверь переменные окружения.")
 logging.basicConfig(level=logging.INFO)
 
 TEMPLATE_PATH = "template.pdf"
